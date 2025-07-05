@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(45deg, #ff6b6b, #ffd700);
+            margin: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background-color: #222;
+            border: 2px solid #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #start-button {
+            position: absolute;
+            z-index: 1;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        #start-button:hover {
+            background-color: #45a049;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            font-size: 20px;
+            color: white;
+            text-align: center;
+            z-index: 1;
+        }
+        .snake {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: limegreen;
+            border-radius: 3px;
+            box-shadow: 0 0 5px 2px rgba(0, 255, 0, 0.5);
+            transition: left 0.1s ease, top 0.1s ease;
+        }
+        .apple {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            box-shadow: 0 0 5px 2px rgba(255, 0, 0, 0.5);
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+            color: white;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+            display: none;
+        }
+        #side-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            text-align: center;
+            z-index: 1;
+        }
+        #side-bar h2 {
+            font-size: 22px;
+            margin-bottom: 20px;
+        }
+        #follow-button {
+            padding: 15px 25px;
+            background-color: #3f729b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+        #follow-button:hover {
+            background-color: #2e5678;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="instructions">Use W, A, S, D to control the snake</div>
+        <button id="start-button">Start Game</button>
+        <div id="game-over">Game Over! Press Enter to Restart</div>
+    </div>
+
+    <div id="side-bar">
+        <h2>FOR MORE CONTENT MAKE SURE YOU FOLLOW ME</h2>
+        <a href="https://www.instagram.com/virajr7123/" target="_blank">
+            <button id="follow-button">Follow Me on Instagram</button>
+        </a>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById("game-container");
+        const startButton = document.getElementById("start-button");
+        const gameOverElement = document.getElementById("game-over");
+        const instructionsElement = document.getElementById("instructions");
+        const sideBar = document.getElementById("side-bar");
+
+        const gridSize = 20;
+        const gameWidth = 800;
+        const gameHeight = 600;
+        let snake = [{ x: 400, y: 300 }];
+        let direction = { x: 0, y: 0 };
+        let apple = { x: 0, y: 0 };
+        let gameInterval;
+        let gameRunning = false;
+        let newDirectionQueued = false;
+        let intervalTime = 200;
+        let speedUp = 50;
+        let speedChanged = false;
+
+        // Start the game
+        function startGame() {
+            sideBar.style.display = "none";  // Hide the Instagram section
+            startButton.style.display = "none";  // Hide the start button
+            instructionsElement.style.display = "none";  // Hide instructions
+            gameOverElement.style.display = "none";  // Hide game over screen
+            snake = [{ x: 400, y: 300 }];
+            direction = { x: 0, y: 0 };
+            placeApple();
+            gameRunning = true;
+            gameInterval = setInterval(updateGame, intervalTime);
+            document.addEventListener("keydown", changeDirection);
+        }
+
+        // Place a new apple in a random position
+        function placeApple() {
+            let validPosition = false;
+            while (!validPosition) {
+                apple.x = Math.floor(Math.random() * (gameWidth / gridSize)) * gridSize;
+                apple.y = Math.floor(Math.random() * (gameHeight / gridSize)) * gridSize;
+
+                // Ensure the apple doesn't spawn on the snake
+                validPosition = !snake.some(segment => segment.x === apple.x && segment.y === apple.y);
+            }
+
+            // Remove the old apple if it exists
+            const existingApple = document.querySelector('.apple');
+            if (existingApple) {
+                existingApple.remove();
+            }
+
+            // Create and position the new apple
+            const appleElement = document.createElement("div");
+            appleElement.classList.add("apple");
+            appleElement.style.left = `${apple.x}px`;
+            appleElement.style.top = `${apple.y}px`;
+            gameContainer.appendChild(appleElement);
+        }
+
+        // Change snake's direction based on key press
+        function changeDirection(event) {
+            const key = event.key.toUpperCase();
+            if (newDirectionQueued) return; // Prevent multiple direction changes in one update
+            if (key === "W" && direction.y === 0) direction = { x: 0, y: -gridSize };
+            if (key === "A" && direction.x === 0) direction = { x: -gridSize, y: 0 };
+            if (key === "S" && direction.y === 0) direction = { x: 0, y: gridSize };
+            if (key === "D" && direction.x === 0) direction = { x: gridSize, y: 0 };
+            newDirectionQueued = true;
+        }
+
+        // Update game state and render the game
+        function updateGame() {
+            if (!gameRunning) return;
+
+            const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+            snake.unshift(head);
+            newDirectionQueued = false;
+
+            // Check if the snake eats the apple
+            if (head.x === apple.x && head.y === apple.y) {
+                placeApple();  // Place a new apple
+                if (!speedChanged) {
+                    intervalTime = Math.max(50, intervalTime - speedUp); // Increase speed
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(updateGame, intervalTime);
+                    speedChanged = true;
+                }
+            } else {
+                snake.pop(); // Remove the last segment of the snake if no apple is eaten
+            }
+
+            // Check if the snake collides with walls or itself
+            if (head.x < 0 || head.x >= gameWidth || head.y < 0 || head.y >= gameHeight || snakeCollision(head)) {
+                endGame();
+                return;
+            }
+
+            renderSnake();  // Update the snake's position
+        }
+
+        // Check if the snake collides with itself
+        function snakeCollision(head) {
+            return snake.some((segment, index) => index !== 0 && segment.x === head.x && segment.y === head.y);
+        }
+
+        // Render the snake on the screen
+        function renderSnake() {
+            gameContainer.querySelectorAll('.snake').forEach(seg => seg.remove());  // Remove old snake segments
+            snake.forEach((segment, index) => {
+                const segmentElement = document.createElement("div");
+                segmentElement.classList.add("snake");
+                segmentElement.style.left = `${segment.x}px`;
+                segmentElement.style.top = `${segment.y}px`;
+                segmentElement.id = `snake-segment-${index}`;
+                gameContainer.appendChild(segmentElement);
+            });
+        }
+
+        // End the game and show the "Game Over" screen
+        function endGame() {
+            clearInterval(gameInterval);
+            gameRunning = false;
+            gameOverElement.style.display = "block"; // Show game over message
+            setTimeout(() => {
+                sideBar.style.display = "block";  // Show Instagram section again after a while
+            }, 1000);
+        }
+
+        // Start the game when the button is clicked
+        startButton.addEventListener("click", startGame);
+
+        // Restart the game when "Enter" is pressed after game over
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && !gameRunning) {
+                gameOverElement.style.display = "none";
+                startGame();
+            }
+        });
+    </script>
+</body>
+</html>
+
